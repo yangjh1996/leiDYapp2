@@ -1,0 +1,459 @@
+<script setup>
+import { ref, computed, getCurrentInstance } from 'vue'
+	import { onShow, onHide } from '@dcloudio/uni-app'
+import { getRandomColor } from '@/utils'
+	import videoJson from './mock/video-json'
+	import { getVideoList } from '../api/video.js' // 引入 API
+	const { globalData } = getApp()
+	const menuBarT = ref(globalData.menu?.top || globalData.statusBarH)
+const winWidth = ref(globalData.screenWidth)
+const winHeight = ref(globalData.screenHeight)
+	const tabsList = ref([
+	{ name: '推荐', count: 5 },{ name: '关注' },{ name: '同城' }
+	])
+const tabsCurrent = ref(0)
+	// 视频参数
+const currentVideo = ref(0)
+	const isPlaying = ref(false)
+const clickNum = ref(0)
+const clickTimer = ref(null)
+	const progressBar = ref(0)
+	// 视频源
+//const videoList = ref(videoJson)
+const videoList = ref([]) // 保留初始化为空数组
+	const danmuEditor = ref('')
+const isVisibleDanmu = ref(false)
+const commentRef = ref(null)
+	const shareRef = ref(null)
+	const keyboardHeight = ref(0)
+// 计算键盘高度
+const fixKeyboardHeight = computed(() => {
+	let keyboardH = keyboardHeight.value > 0 ? keyboardHeight.value + 56 : keyboardHeight.value
+return keyboardH ? keyboardH + 'px' : null
+	})
+	
+	// #ifndef H5
+	// 监听键盘高度变化
+uni.onKeyboardHeightChange(e => {
+		keyboardHeight.value = e.height
+	if(e.height <= 0) {
+	handleCloseDanmu()
+		}
+	})
+	// #endif
+	
+	// 创建并返回 video 上下文 videoContext 对象
+const getVideoContext = () => {
+	return uni.createVideoContext(`uplayer${currentVideo.value}`, getCurrentInstance())
+	}
+
+	// 数据转换函数
+const transformVideoData = (apiData) => {
+  return apiData.map(item => {
+    return {
+      // avatar: '',
+      author: '系统',
+	  src: 'http://192.168.2.6:9100/api/staticfiles/raw/'+item.raw,
+	  desc: item.description,
+	  playNum: item.wishCount,
+	  likeNum: item.wishCount,
+	  replyNum: item.recommendCount,
+	  starNum: item.score,
+	  shareNum: item.pv,
+	  isLike: true,
+	  	isFollow: true,
+	  danmu: [
+	  	{ text: '第 1s 出现的弹幕', color: '#ff5500', time: 1 },
+	  		{ text: '第 3s 出现的弹幕', color: '#5500ff', time: 3 }
+	  	]
+    };
+  });
+};
+
+// 在获取数据后应用转换
+const fetchVideoData = async () => {
+  try {
+    const res = await getVideoList();
+    if (res.code === 200 && res.data) {
+		// 打印转换前的视频列表
+		//console.log('转换前的视频列表:', JSON.stringify(res.data, null, 2));
+	
+      // 转换数据格式
+      const transformedData = transformVideoData(res.data);
+      videoList.value = transformedData;
+
+      // 打印转换后的视频列表
+      //console.log('转换后的视频列表:', JSON.stringify(transformedData, null, 2));
+
+      if (videoList.value.length > 0) {
+        handlePlay();
+      }
+    } else {
+      console.error('获取视频列表失败:', res.message);
+    }
+  } catch (err) {
+    console.error('网络错误:', err);
+  }
+};
+
+// 生命周期钩子中调用数据获取
+onShow(() => {
+  if (videoList.value.length === 0) {
+    fetchVideoData()
+  } else {
+    handlePlay()
+  }
+})
+	
+const handleChange = (e) => {
+	const index = e.detail.current
+	progressBar.value = 0
+		handleReset()
+	currentVideo.value = index
+		// 播放
+	handlePlay()
+	}
+	
+// 滑动位置发生改变时会触发 transition 事件
+	const handleTransition = (e) => {
+	}
+// 播放
+const handlePlay = () => {
+	let video = getVideoContext()
+		if(!video) return
+	video.play()
+		isPlaying.value = true
+	}
+	
+	// 暂停
+	const handlePause = () => {
+	let video = getVideoContext()
+		if(!video) return
+	video.pause()
+		isPlaying.value = false
+	}
+	
+	// 重置播放
+const handleReset = () => {
+		let video = getVideoContext()
+	if(!video) return
+		video.pause()
+		video.seek(0)
+		video.stop()
+	isPlaying.value = false
+	}
+	
+const handleTimeUpdate = (e) => {
+	let { currentTime, duration } = e.detail
+		progressBar.value = parseInt((currentTime / duration).toFixed(2) * parseInt(winWidth.value))
+	}
+const handleClickVideo = () => {
+		clearTimeout(clickTimer.value)
+	clickNum.value++
+	clickTimer.value = setTimeout(() => {
+		if(clickNum.value >= 2) {
+				console.log('double click')
+			}else {
+			if(isPlaying.value) {
+					handlePause()
+			}else {
+					handlePlay()
+				}
+			}
+			clickNum.value = 0
+		}, 200)
+	}
+	
+onShow(() => {
+	handlePlay()
+	})
+	
+	onHide(() => {
+		handleReset()
+	})
+	
+	// 打开弹幕弹框
+const handleOpenDanmu = () => {
+	isVisibleDanmu.value = true
+	}
+	// 关闭弹幕弹框
+const handleCloseDanmu = () => {
+	uni.hideKeyboard()
+isVisibleDanmu.value = false
+	danmuEditor.value = ''
+	}
+	// 发送弹幕
+const handleSendDanmu = () => {
+	let video = getVideoContext()
+		if(!video) return
+	video.sendDanmu({
+		text: danmuEditor.value,color: getRandomColor()
+		})
+		handleCloseDanmu()
+	}
+	// 关注
+const handleFollow = (index) => {
+	videoList.value[index].isFollow = !videoList.value[index].isFollow
+	}
+	// 喜欢
+	const handleLiked = (index) => {
+videoList.value[index].isLike = !videoList.value[index].isLike
+	}
+	// 打开评论框
+const handleOpenComment = (index) => {
+		commentRef.value.open()
+	}
+	// 关闭评论框
+const handleCloseComment = (index) => {
+	commentRef.value.close()
+	}
+	// 打开分享框
+const handleOpenShare = (index) => {
+	shareRef.value.open()
+	}
+	// 关闭分享框
+	const handleCloseShare = (index) => {
+	shareRef.value.close()
+	}
+</script>
+
+<template>
+<ua-layout :tabbar="false">
+	<view class="ua__swipervideo flex1">
+		<swiper
+			class="ua__swipervideo-wrap flex1"
+				:current="currentVideo"
+			vertical
+			:circular="true"
+			:duration="200"
+				@change="handleChange"
+			@transition="handleTransition"
+			>
+		<swiper-item v-for="(item, index) in videoList" :key="index">
+			<video
+				class="ua__swipervideo-player flex1"
+					:id="'uplayer' + index"
+						:src="item.src"
+					:danmu-list="item.danmu"
+						:enable-danmu="true"
+					:controls="false"
+						:loop="true"
+					:autoplay="index == currentVideo"
+					:show-center-play-btn="false"
+						object-fit="contain"
+					@click="handleClickVideo"
+					@play="isPlaying=true"
+						@timeupdate="handleTimeUpdate"
+					:style="{'width': `${winWidth}px`, 'height': `${winHeight}px`}"
+					>
+					</video>
+					
+			<view class="ulive__video-float__info flexbox flex-col">
+					<view class="flexbox flex-row flex-alignb">
+							<view class="vdinfo__left flex1 flexbox flex-col">
+						<view class="ltrow danmu flexbox" @click="handleOpenDanmu"><text class="danmu-txt">弹</text><uv-icon class="ico" name="edit-pen" color="#fff" size="14" /></view>
+				<view class="ltrow"><text class="ait">@{{item.author}}</text></view>
+								<view class="ltrow"><text class="desc">{{item.desc}}</text></view>
+						</view>
+				<view class="vdinfo__right flexbox flex-col">
+					<view class="rtbtn avatar flexbox flex-col">
+						<view class="ubox"><image class="uimg" :src="item.avatar" mode="aspectFill" /></view>
+						<view class="btn flexbox" :class="{'active': item.isFollow}" @click="handleFollow(index)"><uv-icon :name="item.isFollow ? 'checkmark' : 'plus'" :color="item.isFollow ? '#ff007f' : '#fff'" size="11" /></view>
+								</view>
+					<view class="rtbtn flexbox flex-col" @click="handleLiked(index)"><uv-icon name="heart-fill" :color="item.isLike ? '#ff007f' : '#fff'" size="40" /><text class="num">{{item.likeNum+(item.isLike ? 1 : 0)}}</text></view>
+								<view class="rtbtn flexbox flex-col" @click="handleOpenComment(index)"><uv-icon name="chat-fill" color="#fff" size="40" /><text class="num">{{item.replyNum}}</text></view>
+						<view class="rtbtn flexbox flex-col"><uv-icon name="star-fill" color="#fff" size="40" /><text class="num">{{item.starNum}}</text></view>
+					<view class="rtbtn flexbox flex-col" @click="handleOpenShare(index)"><uv-icon name="share-fill" color="#fff" size="40" /><text class="num">{{item.shareNum}}</text></view>
+							</view>
+					</view>
+					</view>
+		</swiper-item>
+			</swiper>
+		<view class="ulive__video-header__tabs" :style="{'margin-top': `${menuBarT}px`}">
+		<uv-tabs :current="tabsCurrent" :list="tabsList" bg-color="transparent" :inactiveStyle="{color: 'rgba(255,255,255,.7)', 'font-size': '32rpx'}" :activeStyle="{color: '#fff', 'font-size': '32rpx'}" />
+			</view>
+			
+	<view v-if="!isPlaying" class="ua__swipervideo-playbtn" :style="{'left': `${winWidth/2}px`, 'top': `${winHeight/2}px`}" @click="handleClickVideo">
+		<text class="ua__swipervideo-playico welive-icon welive-icon-play nvueicon">
+					<!-- #ifdef APP-NVUE -->
+					&#xe87b;
+					<!-- #endif -->
+				</text>
+			</view>
+<view class="ua__swipervideo-progress" :style="{'width': `${winWidth}px`}"><view class="ua__swipervideo-progressbar" :style="{'width': `${progressBar}px`}"></view></view>
+		</view>
+	<template #footer>
+	<ua-tabbar bgcolor="transparent" color="rgba(255,255,255,.7)" :border="false" :dock="false" transparent z-index="1000" />
+		</template>
+	</ua-layout>
+	
+<view v-if="isVisibleDanmu" class="ulive__video-danmu__wrap">
+	<view class="ulive__video-danmu__mask" @click="handleCloseDanmu"></view>
+	<view class="ulive__video-danmu__body" :style="{'height': fixKeyboardHeight}">
+		<view class="ulive__video-danmu__editor flexbox flex-row flex-alignc">
+		<view class="danmu flexbox"><text class="danmu-txt">弹</text><uv-icon class="ico" name="checkbox-mark" color="#2979ff" size="14" /></view>
+		<uv-input v-model="danmuEditor" shape="circle" focus :adjustPosition="false" placeholder="发一条友好的弹幕吧" :customStyle="{background: '#f3f3f3', border: 'none', margin: '0 20rpx'}">
+		<template #suffix>
+			<uv-icon name="/static/emoj.png" color="#777" size="20" />
+					</template>
+				</uv-input>
+	<uv-button text="发送" type="primary" shape="circle" :customStyle="{padding: '0 20rpx', height: '70rpx'}" @click="handleSendDanmu" />
+			</view>
+	<view class="ulive__video-danmu__emojs"></view>
+		</view>
+	</view>
+<uv-popup ref="commentRef" mode="bottom" round="10" zIndex="2023">
+	<view class="ulive__video-comment__wrap flexbox flex-col" style="height: 1000rpx;">
+		<view class="ulive__video-comment__head flexbox flex-row">
+	<uv-icon name="close" @click="handleCloseComment" />
+		<view class="ml-20"><text class="fs-32">评论 7643</text></view>
+			</view>
+		<scroll-view class="flex1" scroll-y style="height: 800rpx;">
+		<uv-list>
+			<uv-list-item>
+				<view class="ulive__video-comment__item flexbox flex-row">
+					<image class="avatar" src="/static/avatar/uimg1.jpeg" />
+				<view class="flex1 flexbox flex-col">
+					<view class="flexbox flex-row flex-alignc mb-10"><text class="flex1 fs-24">第三视角</text><view class="flexbox flex-row mr-30"><uv-icon name="thumb-up" /><text class="fs-24">348</text></view><uv-icon name="thumb-down" /></view>
+						<rich-text class="fs-30" :nodes="'解放立刻洒家方式JFK拉萨解放jkljkljklfjds534534空间链接发上课了432432j尽快立法'"></rich-text>
+					<view class="flexbox flex-row flex-alignc mt-10"><view class="replynum flexbox flex-row"><text class="fs-24">21回复</text><uv-icon name="arrow-right" size="12" /></view><text class="c-999 fs-24">12-5 · 浙江</text></view>
+							</view>
+				</view>
+					</uv-list-item>
+			<uv-list-item>
+				<view class="ulive__video-comment__item flexbox flex-row">
+					<image class="avatar" src="/static/avatar/uimg3.jpeg" />
+					<view class="flex1 flexbox flex-col">
+						<view class="flexbox flex-row flex-alignc mb-10"><text class="flex1 fs-24">盗梦空间</text><view class="flexbox flex-row mr-30"><uv-icon name="thumb-up" /><text class="fs-24">26</text></view><uv-icon name="thumb-down" /></view>
+					<rich-text class="fs-30" :nodes="'非洛伊德关于梦的解析'"></rich-text>
+			<view class="flexbox flex-row flex-alignc mt-10"><view class="replynum flexbox flex-row"><text class="fs-24">回复</text><uv-icon name="arrow-right" size="12" /></view><text class="c-999 fs-24">12-5 · 浙江</text></view>
+							</view>
+						</view>
+					</uv-list-item>
+				</uv-list>
+	</scroll-view>
+		<view class="ulive__video-comment__foot flexbox flex-row">
+			<view class="flex1 flexbox flex-row flex-alignc"><uv-icon name="edit-pen-fill" size="12" /><text class="fs-28 ml-10">美好的一天从评论开始</text></view>
+		<uv-icon name="photo" color="#777" size="24" />
+			<uv-icon name="/static/emoj.png" color="#777" size="20" style="margin-left: 20rpx;" />
+			</view>
+		</view>
+	</uv-popup>
+	
+<uv-popup ref="shareRef" mode="bottom" round="10" zIndex="2023">
+		<view class="ulive__video-share__wrap">
+	<view class="ulive__video-share__list flexbox flex-row">
+		<view class="ulive__video-share__item flexbox flex-col"><view class="ulive__video-share__bg"><image class="ulive__video-share__img" src="/static/share-wx.png" /></view><text class="fs-24">微信</text></view>
+		<view class="ulive__video-share__item flexbox flex-col"><view class="ulive__video-share__bg"><image class="ulive__video-share__img" src="/static/share-pyq.png" /></view><text class="fs-24">朋友圈</text></view>
+				<view class="ulive__video-share__item flexbox flex-col"><view class="ulive__video-share__bg"><image class="ulive__video-share__img" src="/static/share-tiktok.png" /></view><text class="fs-24">抖音好友</text></view>
+	<view class="ulive__video-share__item flexbox flex-col"><view class="ulive__video-share__bg"><image class="ulive__video-share__img" src="/static/share-qq.png" /></view><text class="fs-24">QQ</text></view>
+			</view>
+			<view class="ulive__video-share__cancel" @click="handleCloseShare">取消</view>
+</view>
+	</uv-popup>
+</template>
+
+<style lang="scss" scoped>
+/* 视频模块样式 */
+.ua__swipervideo {
+	height: 100%;
+		/* #ifdef MP-WEIXIN */
+	height: 100vh;
+		/* #endif */
+	}
+	.ua__swipervideo-wrap {height: 100%;}
+.ua__swipervideo-player {
+		/* #ifndef APP-NVUE */
+	height: 100%!important; width: 100%!important;
+		/* #endif */
+		position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+	}
+	// 播放按钮
+.ua__swipervideo-playbtn {
+		/* #ifndef APP-NVUE */
+	display:-webkit-box; display:-webkit-flex; display:flex; display:-ms-flexbox; left: 50%!important; top: 50%!important;
+		/* #endif */
+	border: 1px solid transparent; align-items: center!important; justify-content: center!important; margin-left: -50rpx; margin-top: -50rpx; height: 100rpx; width: 100rpx; position: absolute!important; pointer-events: none;
+		.ua__swipervideo-playico {color: rgba(255,255,255,.7); font-size: 100rpx;}
+	}
+// 播放mini进度条
+.ua__swipervideo-progress{
+		/* #ifndef APP-NVUE */
+	width: 100%; z-index: 1001;
+		/* #endif */
+		/* #ifdef APP-NVUE */
+	left: 0; right: 0;
+		/* #endif */
+	background-color: rgba(255,255,255,.2); height: 1px; position: absolute!important; bottom: 110rpx; z-index: 10;
+	.ua__swipervideo-progressbar {
+	background-color: #fff; height: 1px; width: 0; transition: all .2s; position: relative;
+		&:after {
+		content: ''; background-color: #fff; border-radius: 50%; height: 4px; width: 4px; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+			}
+		}
+	}
+::v-deep .uni-video-danmu {margin-top: 50px!important; height: 150px!important;}
+	
+	/* 其它模块样式 */
+	.ulive__video-header__tabs {
+		/* #ifndef APP-NVUE */
+	display:-webkit-box; display:-webkit-flex; display:flex; display:-ms-flexbox;
+		/* #endif */
+align-items: center; justify-content: center;
+		position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+	}
+	
+	// 浮层样式
+.ulive__video-float__info {
+	/* #ifndef APP-NVUE */
+	width: 100%; z-index: 1000; pointer-events: none;
+		/* #endif */
+		max-width: 750px; position: absolute!important; left: 0; right: 0; bottom: 150rpx;
+	}
+	// 左侧
+.ulive__video-float__info .vdinfo__left {padding: 20rpx 80rpx 0 20rpx; pointer-events: auto;}
+	.vdinfo__left .ltrow {margin-top: 20rpx;}
+.vdinfo__left .danmu {align-items: center; justify-content: center; background-color: rgba(0,0,0,.3); border-radius: 50%; height: 60rpx; width: 60rpx; position: relative;}
+.vdinfo__left .danmu .danmu-txt {color: #fff; font-size: 30rpx;}
+	.vdinfo__left .danmu .ico {position: absolute; right: 0; bottom:0;}
+.vdinfo__left .ait {color: #fff; font-size: 32rpx;}
+	.vdinfo__left .desc {color: #fff; font-size: 26rpx;}
+	// 右侧
+.ulive__video-float__info .vdinfo__right {align-items: center; width: 120rpx; pointer-events: auto;}
+	.vdinfo__right .rtbtn {align-items: center; text-align: center; margin-top: 30rpx; position: relative;}
+.vdinfo__right .rtbtn.avatar {justify-content: center; width: 90rpx;}
+	.vdinfo__right .rtbtn.avatar .ubox {border: 2px solid #fff; border-radius: 50%;}
+.vdinfo__right .rtbtn.avatar .uimg {border-radius: 50%; height: 80rpx; width: 80rpx; object-fit: cover;}
+.vdinfo__right .rtbtn.avatar .btn {align-items: center; justify-content: center; background: #ff007f; border-radius: 50%; margin-top: -20rpx; height: 40rpx; width: 40rpx;}
+	.vdinfo__right .rtbtn.avatar .btn.active {background: #fff; color: #ff007f;}
+	.vdinfo__right .rtbtn .icon {color: #fff; font-size: 75rpx;}
+	.vdinfo__right .rtbtn .num {color: #fff; font-size: 24rpx;}
+	
+.ulive__video-danmu__wrap {max-width: 750px; position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 2023;}
+.ulive__video-danmu__mask {
+background-color: rgba(0,0,0,.4); position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: inherit; animation: animMask .5s;
+	}
+	@keyframes animMask {0% {opacity: 0;}}
+.ulive__video-danmu__body {
+background-color: transparent; position: fixed; left: 0; right: 0; bottom: 0; z-index: inherit;
+	}
+	.ulive__video-danmu__editor {background-color: #fff; padding: 20rpx;}
+.ulive__video-danmu__editor .danmu {align-items: center; justify-content: center; background-color: #f3f3f3; border-radius: 50%; height: 70rpx; width: 70rpx; position: relative;}
+.ulive__video-danmu__editor .danmu .danmu-txt {color: #777; font-size: 30rpx;}
+	.ulive__video-danmu__editor .danmu .ico {position: absolute; right: 0; bottom:0;}
+.ulive__video-danmu__emojs {}
+	// 评论框
+	.ulive__video-comment__wrap {padding: 20rpx;}
+.ulive__video-comment__head {padding-bottom: 20rpx;}
+	.ulive__video-comment__item {padding: 20rpx 10rpx;}
+.ulive__video-comment__item .avatar {border-radius: 100px; margin-right: 15rpx; height: 60rpx; width: 60rpx;}
+	.ulive__video-comment__item .replynum {background: #f9f9f9; border-radius: 20rpx; margin-right: 20rpx; padding: 5rpx 15rpx;}
+.ulive__video-comment__foot {background: #f3f3f3; border-radius: 10rpx; padding: 10rpx;}
+	// 分享弹框
+.ulive__video-share__wrap {}
+	.ulive__video-share__list {padding: 25rpx; background: #f3f3f3; border-top-left-radius: 10px; border-top-right-radius: 10px;}
+.ulive__video-share__item {flex: 1; align-items: center;}
+.ulive__video-share__bg {background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 10rpx; height: 90rpx; width: 90rpx;}
+	.ulive__video-share__img {height: 60rpx; width: 60rpx;}
+.ulive__video-share__cancel {align-items: center; justify-content: center; padding: 25rpx;}
+</style>

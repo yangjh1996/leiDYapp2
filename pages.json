@@ -1,0 +1,138 @@
+{
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+	
+		// {
+		// 	"path": "pages/auth/login",
+		// 	"style": {
+		// 		"navigationBarTitleText": "登录"
+		// 	}
+		// },
+		// {
+		// 	"path": "pages/index/index",
+		// 	"style": {
+		// 		"navigationBarTitleText": "首页",
+		// 		"navigationBarTextStyle": "white"
+		// 	}
+		// },
+
+		{
+			"path": "pages/video/index",
+			"style": {
+				"navigationBarTitleText": "短视频",
+				"navigationBarTextStyle": "white",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/live/index",
+			"style": {
+				"navigationBarTitleText": "直播列表",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/live/live",
+			"style": {
+				"navigationBarTitleText": "直播",
+				"navigationBarTextStyle": "white",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/cart/index",
+			"style": {
+				"navigationBarTitleText": "购物车"
+			}
+		},
+		{
+			"path": "pages/my/index",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/goods/detail",
+			"style": {
+				"navigationBarTitleText": "商品详情",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/order/list",
+			"style": {
+				"navigationBarTitleText": "订单列表"
+			}
+		},
+		{
+			"path": "pages/order/detail",
+			"style": {
+				"navigationBarTitleText": "订单详情"
+			}
+		},
+		{
+			"path": "pages/order/order-sure",
+			"style": {
+				"navigationBarTitleText": "确认订单"
+			}
+		},
+		// 错误模块
+		{
+			"path": "pages/404/index",
+			"style": {
+				"navigationBarTitleText": "Page Error"
+			}
+		},
+		// 登录+注册模块
+		{
+			"path": "pages/auth/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/auth/register",
+			"style": {
+				"navigationBarTitleText": "注册"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-welive",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8",
+		"navigationStyle": "custom"
+	},
+	// 用于自定义tabbar切换switchTab，程序启动后会屏蔽隐藏
+	"tabBar": {
+		"color": "#999",
+		"selectedColor": "#333",
+		"backgroundColor": "#fff",
+		"list": [
+			{
+				//"pages/index/index
+				"pagePath": "",
+				"text": "首页"
+			},
+			{
+				"pagePath": "pages/video/index",
+				"text": "短视频"
+			},
+			{
+				//pages/live/index
+				"pagePath": "",
+				"text": "直播"
+			},
+			{
+				//pages/cart/index
+				"pagePath": "",
+				"text": "购物车"
+			},
+			{
+				"pagePath": "pages/my/index",
+				"text": "我"
+			}
+		]
+	},
+	"uniIdRouter": {}
+}

@@ -1,0 +1,922 @@
+<!-- 直播模板 -->
+<script setup>
+import { onMounted, nextTick, ref, computed, watch, getCurrentInstance } from 'vue'
+import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
+	import { isEmpty } from '@/utils'
+// 引入直播模拟数据
+import liveJson from './mock/live-json'
+import giftJson from './mock/gift-json'
+const props = defineProps({
+	// 直播id
+	roomid: { type: [Number, String] }
+	})
+onLoad((option) => {
+liveJson.map((item, index) => {
+		if(parseInt(item.id) == parseInt(props.roomid)) {
+		currentLive.value = index
+			scrollBottom()
+			}
+		})
+	})
+	
+onMounted(() => {
+	mockJoinRoom()
+		mockSendGift()
+	})
+const { globalData } = getApp()
+	console.log(globalData)
+const menuBarT = ref(globalData.menu?.top || globalData.statusBarH)
+const winWidth = ref(globalData.screenWidth)
+	const winHeight = ref(globalData.screenHeight)
+// 直播数据源
+	const liveList = ref(liveJson)
+const currentLive = ref(0)
+	const giftList = ref(giftJson)
+const giftCur = ref(0)
+const giftCoins = ref(0)
+	// 动画参数
+const joinRoomData = ref(null)
+const sendGiftData = ref([])
+	// 聊天滚动消息参数
+const isVisibleChatbox = ref(false)
+const chatEditor = ref('')
+	const isScrolltolower = ref(false)
+const scrollToView = ref('')
+	const msgUnread = ref([])
+	const isVisibleGoodsTalk = ref(true)
+const goodsTalkWidth = ref(0)
+	const redpacketRef = ref(null)
+const isVisibleRedpacketRecieve = ref(false)
+	const isVisibleRedpacketWait = ref(false)
+const menuList = ref([
+	{label: '提现', img: '/static/menu/menu1.png'},
+		{label: '我的订单', img: '/static/menu/menu2.png'},{label: '联系客服', img: '/static/menu/menu3.png'},
+	{label: '排行榜', img: '/static/menu/menu4.png'},{label: '转盘抽奖', img: '/static/menu/menu5.png'},
+		{label: '中奖记录', img: '/static/menu/menu6.png'},{label: '我的优惠券', img: '/static/menu/menu7.png'},
+	{label: '评论记录板', img: '/static/menu/menu8.png'},
+	{label: '推广员', img: '/static/menu/menu9.png'},{label: '举报', img: '/static/menu/menu10.png'},
+		{label: '特效', img: '/static/menu/menu11.png'},{label: '分享', img: '/static/menu/menu12.png'},
+	])
+const menusRef = ref(null)
+	const goodsRef = ref(null)
+const goodsData = ref({})
+	const giftsRef = ref(null)
+const giftModalRef = ref(null)
+	const giftsTabList = ref([
+	{ name: '礼物' },{ name: '互动' },{ name: '粉丝团' },{ name: '等级' }
+	])
+	const giftsTabCurrent = ref(0)
+const keyboardHeight = ref(0)
+	// 计算键盘高度
+const fixKeyboardHeight = computed(() => {
+	let keyboardH = keyboardHeight.value > 0 ? keyboardHeight.value + 56 : keyboardHeight.value
+		return keyboardH ? keyboardH + 'px' : null
+	})
+const fixTextStyle = computed(() => {
+	// #ifdef APP-NVUE
+	return {'max-width': globalData.screenWidth - goodsTalkWidth.value - 100 + 'px'}
+		// #endif
+		return null
+	})
+	
+	// #ifndef H5
+	// 监听键盘高度变化
+uni.onKeyboardHeightChange(e => {
+	keyboardHeight.value = e.height
+		if(e.height <= 0) {
+	handleCloseChatbox()
+		}
+	})
+	// #endif
+	
+	// #ifdef APP-NVUE
+	// 在nvue下计算讲解商品宽度，用于适配text最大宽度
+watch(() => isVisibleGoodsTalk.value, (val) => {
+	if(val) {
+		nextTick(() => {
+		let query = uni.createSelectorQuery()
+			query.select('#goodsTalkID').boundingClientRect()
+		query.exec((res) => {
+			if(res) {
+			goodsTalkWidth.value = res[0]?.width || 0
+				}
+				})
+			})
+	}else {
+	goodsTalkWidth.value = 30
+		}
+	}, { immediate: true })
+	// #endif
+	
+	// 创建并返回 video 上下文 videoContext 对象
+const getVideoContext = () => {
+	return uni.createVideoContext(`uplayer${currentLive.value}`, getCurrentInstance())
+	}
+	
+const handleChange = (e) => {
+	const index = e.detail.current
+		handleReset()
+	currentLive.value = index
+		// 播放
+		handlePlay()
+	scrollBottom()
+	}
+	
+	// 滑动位置发生改变时会触发 transition 事件
+const handleTransition = (e) => {
+	}
+	
+	// 播放
+	const handlePlay = () => {
+	console.log('video play')
+		let video = getVideoContext()
+		if(!video) return
+		video.play()
+	}
+	// 暂停
+const handlePause = () => {
+	let video = getVideoContext()
+		if(!video) return
+		video.pause()
+	}
+	
+	// 重置播放
+const handleReset = () => {
+	let video = getVideoContext()
+		if(!video) return
+		video.pause()
+		video.seek(0)
+	video.stop()
+	}
+	
+onShow(() => {
+		handlePlay()
+	})
+	
+	onHide(() => {
+		handleReset()
+	})
+	
+	// 模拟加入直播间
+const mockJoinRoom = () => {
+	setInterval(() => {
+		let joinArr = ['Jack', '阿sir', 'Andy', 'Hisen', '王二宝', '小李子', 'Alice', '大飞', '璐璐', '宇辉']
+			joinRoomData.value = joinArr[Math.floor(Math.random() * joinArr.length)]
+	if(joinRoomData.value) {
+		setTimeout(() => {
+		joinRoomData.value = null
+				}, 7000)
+			}
+		}, 5000)
+	}
+const mockSendGift = () => {
+	setInterval(() => {
+		let giftArr = [
+			{title: '小心心', pic: '/static/gift/gift1.png', user: 'Jack', avatar: '/static/avatar/uimg1.jpeg'},
+				{title: '棒棒糖', pic: '/static/gift/gift2.png', user: 'Andy', avatar: '/static/avatar/uimg2.jpeg'},{title: '大啤酒', pic: '/static/gift/gift3.png', user: 'Hisen', avatar: '/static/avatar/uimg3.jpeg'},
+			{title: '人气票', pic: '/static/gift/gift4.png', user: '璐璐', avatar: '/static/avatar/uimg4.jpeg'},{title: '鲜花', pic: '/static/gift/gift5.png', user: '小马', avatar: '/static/avatar/uimg5.jpeg'},
+				{title: '捏捏小脸', pic: '/static/gift/gift6.png', user: 'Alice', avatar: '/static/avatar/uimg6.jpeg'},{title: '你真好看', pic: '/static/gift/gift7.png', user: '赵冬梅', avatar: '/static/avatar/uimg7.jpeg'},
+			{title: '亲吻', pic: '/static/gift/gift8.png', user: 'YOYO', avatar: '/static/avatar/uimg3.jpeg'},{title: '玫瑰', pic: '/static/gift/gift12.png', user: '宇辉', avatar: '/static/avatar/uimg2.jpeg'},
+				{title: '比心', pic: '/static/gift/gift13.png', user: 'Len', avatar: '/static/avatar/uimg1.jpeg'},{title: '浪漫烟花', pic: '/static/gift/gift14.png', user: 'Apple', avatar: '/static/avatar/uimg5.jpeg'},
+		{title: '真的爱你', pic: '/static/gift/gift15.png', user: '小孙', avatar: '/static/avatar/uimg6.jpeg'},{title: '私人飞机', pic: '/static/gift/gift16.png', user: '阿伟', avatar: '/static/avatar/uimg7.jpeg'}
+			]
+			sendGiftData.value = giftArr[Math.floor(Math.random() * giftArr.length)]
+		if(!isEmpty(sendGiftData.value)) {
+			setTimeout(() => {
+			sendGiftData.value = []
+				}, 5000)
+			}
+		}, 3000)
+	}
+	
+	// 打开聊天弹框
+const handleOpenChatbox = () => {
+	isVisibleChatbox.value = true
+	}
+	// 关闭聊天弹框
+const handleCloseChatbox = () => {
+	uni.hideKeyboard()
+		isVisibleChatbox.value = false
+		chatEditor.value = ''
+	}
+	// 发送消息
+const handleSendChatmsg = () => {
+	if(!chatEditor.value) return
+		let msglist = liveList.value[currentLive.value].message
+	let len = msglist.length
+		// 消息队列
+		let data = {
+		id: `202312${++len}`,
+			user: 'Andy',
+			content: chatEditor.value
+		}
+	msglist = msglist.concat(data) //插入到数组最后
+		// msglist.unshift(data) //插入到数组第一个
+	liveList.value[currentLive.value].message = msglist
+		if(isScrolltolower.value) {
+			scrollBottom()
+		}else {
+		msgUnread.value.push('unread')
+		}
+		
+		handleCloseChatbox()
+	}
+	// 监听是否滚动到底部
+const handleMsgScroll = (e) => {
+	isScrolltolower.value = false
+	}
+const handleMsgScrollLower = (e) => {
+	setTimeout(() => {
+		if(e.detail.direction == 'bottom') {
+	handleMsgIsRead()
+			}
+		}, 100)
+	}
+	// 设置消息已读
+	const handleMsgIsRead = () => {
+	msgUnread.value = []
+		scrollBottom()
+	}
+	// 滚动条到底部
+const scrollBottom = () => {
+	scrollToView.value = ''
+		isScrolltolower.value = true
+	nextTick(() => {
+		let msglist = liveList.value[currentLive.value].message
+	let msgnew = msglist[msglist.length - 1]
+		scrollToView.value = 'msg-' + msgnew.id
+		})
+	}
+	// 打开红包弹出框
+const handleOpenRedpacket = (type) => {
+	redpacketRef.value.open()
+		if(type == 1) {
+	isVisibleRedpacketRecieve.value = true
+		}else if(type == 2) {
+		isVisibleRedpacketWait.value = true
+		}
+	}
+	const handleCloseRedpacket = () => {
+		redpacketRef.value.close()
+	isVisibleRedpacketRecieve.value = false
+	isVisibleRedpacketWait.value = false
+	}
+	const handleOpenMenus = () => {
+	menusRef.value.open()
+	}
+	
+	// 商品弹出框
+const handleOpenGoods = (item) => {
+	goodsData.value = item
+goodsRef.value.open()
+	}
+const toGoodsDetail = () => {
+	let id = liveList.value[currentLive.value].id
+		uni.navigateTo({
+	url: '/pages/goods/detail?rid=' + id
+		})
+	}
+	const handleOpenGifts = () => {
+	giftsRef.value.open()
+	}
+const handleCheckGift = (item, index) => {
+	giftCur.value = index
+		giftCoins.value = item.coins
+	}
+	// 发送礼物
+	const handleSendGift = (item) => {
+	giftModalRef.value.open()
+	}
+const handleSendGiftClose = () => {
+	giftModalRef.value.close()
+	}
+	// 关注
+	const handleFollow = (index) => {
+	liveList.value[index].isFollow = !liveList.value[index].isFollow
+	}
+	
+	// 退出直播间
+const handleLiveQuit = () => {
+	uni.navigateBack()
+	}
+</script>
+
+<template>
+<ua-layout :tabbar="false">
+	<view class="ua__swipervideo flex1">
+	<swiper
+			class="ua__swipervideo-wrap flex1"
+			:current="currentLive"
+			vertical
+		:circular="true"
+			:duration="200"
+			@change="handleChange"
+			@transition="handleTransition"
+			>
+		<swiper-item v-for="(item, index) in liveList" :key="index">
+			<video
+					class="ua__swipervideo-player flex1"
+					:id="'uplayer' + index"
+					:src="item.src"
+					:controls="false"
+						:loop="true"
+					:autoplay="index == currentLive"
+					:show-center-play-btn="false"
+						object-fit="cover"
+				:style="{'width': `${winWidth}px`, 'height': `${winHeight}px`}"
+					>
+				</video>
+		<swiper class="ulive__swiperscreen flex1" :current="1">
+				<!-- 清屏 -->
+				<swiper-item>
+					第一屏
+						</swiper-item>
+			<swiper-item>
+					<view class="ulive__headlayer" :style="{'top': menuBarT+'px'}">
+							<!-- logo+关注 -->
+						<view class="ulive__hd-liveinfo flexbox flex-row flex-alignc">
+								<view class="ulive__hd-avatar ulive__mask flex-alignc">
+							<image class="logo" :src="item.logo" mode="widthFix" />
+								<view class="flex1 flexbox flex-col ml-10">
+									<text class="name">{{item.name}}</text><text class="zan">{{item.likeNum}}本场点赞</text>
+										</view>
+							<view class="btn flexbox flex-row flex-alignc" :class="{'active': item.isFollow}" @click="handleFollow(index)"><text class="btntext" :class="{'active': item.isFollow}">{{item.isFollow ? '已关注' : '关注'}}</text></view>
+								</view>
+						<view class="ulive__hd-onlineuser flex1">
+							<uv-icon name="close" color="#fff" @click="handleLiveQuit" />
+									</view>
+							</view>
+					<view class="ulive__hd-livewrap flexbox flex-row">
+								<!-- 左边 -->
+						<view class="ulive__hd-livewrap__left flex1 flexbox flex-col">
+								<!-- <view class="ulive__roundwrap ulive__mask">
+								<text class="ulive__roundtext">回放</text>
+								</view> -->
+							<view class="ulive__hd-livewrap__tags flexbox flex-row">
+									<view class="ulive__roundwrap ulive__mask">
+								<uv-icon name="shopping-cart" color="#ffdd1a" /><text class="ulive__roundtext">服饰鞋包榜第1名</text>
+											</view>
+								<view class="ulive__roundwrap ulive__mask ml-10">
+									<uv-icon name="level" color="#ffdd1a" /><text class="ulive__roundtext">小时榜</text>
+										</view>
+								</view>
+							<view class="ulive__hd-livewrap__redpacket flexbox flex-row">
+									<view class="ulive__redpacket-item ulive__mask" @click="handleOpenRedpacket(1)">
+									<image class="ulive__redpacket-image" src="/static/icon-fudai.png" mode="widthFix" /><text class="ulive__redpacket-time">04:49</text>
+											</view>
+								<view class="ulive__redpacket-item ulive__mask" @click="handleOpenRedpacket(2)">
+									<image class="ulive__redpacket-image" src="/static/icon-hb.png" mode="widthFix" /><text class="ulive__redpacket-time">04:49</text>
+											</view>
+									<view class="ulive__redpacket-item ulive__mask center">
+									<image class="ulive__redpacket-image" src="/static/icon-rotate.png" mode="widthFix" /><text class="ulive__redpacket-time">04:49</text>
+											</view>
+										</view>
+							</view>
+					<view class="ulive__hd-livewrap__right flexbox flex-col">
+							<view class="ulive__roundwrap ulive__mask mr-20">
+							<uv-icon name="kefu-ermai" color="#fff" /><text class="ulive__roundtext ml-5">后台</text>
+										</view>
+								</view>
+								</view>
+							</view>
+					<view class="ulive__footlayer">
+						<view class="ulive__ft-livewrap-placeholder animated fadeIn">
+								<view class="ulive__ft-livewrap-hotbuy flexbox flex-row">
+								<image class="gimg" :src="item.poster" mode="aspectFill" />
+									<view class="ginfo flex1">
+								<view class="flexbox flex-row"><text class="user c-ffdd1a">Andy</text><text class="c-fff">等{{item.saleNum}}人在购买</text></view>
+									<text class="gdesc clamp1">{{item.desc}}</text>
+										</view>
+							<view class="btn"><text class="btntext">去购买</text></view>
+									</view>
+								</view>
+						<!-- 加入直播间/送礼物提示 -->
+					<view class="ulive__ft-livewrap-animateview flexbox flex-col">
+						<view class="ulive__ft-livewrap-animatejoin ulive__ft-livewrap-placeholder">
+							<view v-if="joinRoomData" class="ulive__ft-livewrap-joinroom"><text class="ulive__ft-livewrap-joinroom__text">欢迎{{joinRoomData}}加入了直播间</text></view>
+								</view>
+									
+						<view class="ulive__ft-livewrap-animategift ulive__ft-livewrap-placeholder">
+								<view v-if="!isEmpty(sendGiftData)" class="ulive__ft-livewrap-activegift flexbox flex-row flex-alignc">
+									<image class="avatar" :src="sendGiftData.avatar" />
+										<view class="info flex1"><text class="name">{{sendGiftData.user}}</text><text class="desc">送出</text></view>
+									<image class="gift" :src="sendGiftData.pic" />
+									</view>
+									</view>
+							</view>
+						<view class="ulive__ft-livewrap-mixinview flexbox flex-row">
+							<!-- 聊天消息 -->
+								<view class="ulive__ft-livewrap-chats flex1">
+							<scroll-view class="ulive__ft-livewrap-chats__scrollview flex1" scroll-y show-scrollbar="false" :scroll-into-view="scrollToView" :lower-threshold="5" @scroll="handleMsgScroll" @scrolltolower="handleMsgScrollLower">
+								<block v-for="(msgitem, msgidx) in item.message" :key="msgidx">
+										<view v-if="msgitem.type == 'notice'" class="notice" :id="`msg-${msgitem.id}`"><view class="item"><text class="noticetext">{{msgitem.content}}</text></view></view>
+										<view v-else-if="msgitem.type == 'gift'" class="gift" :id="`msg-${msgitem.id}`">
+											<view class="item">
+											<text class="giftuser">{{msgitem.user}}</text>
+													<text class="gifttext">送出了{{msgitem.content}}</text>
+												<image class="giftimg" :src="msgitem.img" mode="widthFix" />
+													<text class="giftnum">x{{msgitem.num}}</text>
+													</view>
+										</view>
+										<view v-else class="msg" :id="`msg-${msgitem.id}`">
+											<view class="item">
+												<text v-if="msgitem.tag" class="tag">{{msgitem.tag}}</text>
+													<text class="user">{{msgitem.user}}</text>
+												<text class="text" :style="[fixTextStyle]">{{msgitem.isbuy ? '正在购买' : msgitem.content}}</text>
+											<text v-if="msgitem.isbuy" class="tag tag-buy">去购买</text>
+													</view>
+									</view>
+											</block>
+									</scroll-view>
+							<view v-if="!isEmpty(msgUnread)" class="ulive__ft-livewrap-chats__unread" @click="handleMsgIsRead"><text class="c-eb4868 fs-24">{{msgUnread.length}}条新消息</text></view>
+									</view>
+								<!-- 商品讲解 -->
+							<view v-if="isVisibleGoodsTalk" class="ulive__ft-livewrap-activegoods animated fadeInRight" id="goodsTalkID">
+									<view class="ulive__ft-livewrap-activegoods__hotsale flexbox flex-row">
+								<image class="fimg" src="/static/icon-hot.png" mode="widthFix" /><text class="c-fff fs-32">热卖 x{{item.saleNum}}</text>
+										</view>
+									<swiper class="ulive__ft-livewrap-activegoods__swiper">
+										<swiper-item>
+								<view class="ulive__ft-livewrap-activegoods__card">
+										<view class="gwrap" @click="toGoodsDetail">
+												<image class="gimg" :src="item.poster" mode="aspectFill" />
+											<view class="waves"><text class="c-fff fs-24">讲解中</text></view>
+												<view class="close" @click.stop="isVisibleGoodsTalk=false"><uv-icon name="close-circle-fill" color="rgba(0, 0, 0, .3)" size="14" /></view>
+													</view>
+										<view class="ginfo flexbox flex-col">
+											<text class="clamp1 fs-24">{{item.desc}}</text>
+										<text class="clamp1 fs-24 c-eb4868">7天无理由退货</text>
+													</view>
+										<view class="btn flexbox flex-row"><text class="flex1 c-fff fs-28">￥79.00</text><text class="qiang">抢</text></view>
+											</view>
+								</swiper-item>
+									</swiper>
+							</view>
+								</view>
+						<view class="ulive__ft-livewrap-toolbar flexbox flex-row">
+							<view class="editorwrap flex1 flexbox flex-row flex-alignc">
+							<view class="flex1" @click="handleOpenChatbox"><text class="editorwrap-text">说点什么...</text></view>
+									</view>
+							<view class="btnwrap flexbox flex-row">
+								<view class="btn flexbox" @click="handleOpenMenus"><uv-icon name="grid" color="#3c9cff" size="22" /></view>
+							<view class="btn flexbox" @click="handleOpenGoods(item)"><uv-icon name="shopping-cart-fill" color="#ffaa00" size="24" /></view>
+								<view class="btn flexbox" @click="handleOpenGifts"><uv-icon name="gift" color="#ff0ad3" size="22" /></view>
+					<view class="btn flexbox"><uv-icon name="more-dot-fill" color="#efe9ff" size="18" /></view>
+								</view>
+							</view>
+							</view>
+					</swiper-item>
+			</swiper>
+			</swiper-item>
+			</swiper>
+		</view>
+	</ua-layout>
+	
+<view v-if="isVisibleChatbox" class="ulive__video-chat__wrap">
+		<view class="ulive__video-chat__mask" @click="handleCloseChatbox"></view>
+	<view class="ulive__video-chat__body" :style="{'height': fixKeyboardHeight}">
+		<!-- 编辑框 -->
+		<view class="ulive__video-chat__editor flexbox flex-row flex-alignc">
+		<uv-input v-model="chatEditor" shape="circle" focus :adjustPosition="false" placeholder="文明发言,理性购物" :customStyle="{background: '#f3f3f3', border: 'none', 'margin-right': '20rpx'}">
+			<template #suffix>
+			<uv-icon name="/static/emoj.png" color="#777" size="20" />
+					</template>
+				</uv-input>
+		<uv-button text="发送" type="primary" shape="circle" :customStyle="{background: '#ff007f', border: 'none', padding: '0 20rpx', height: '70rpx'}" @click="handleSendChatmsg" />
+			</view>
+			<view class="ulive__video-chat__emojs"></view>
+		</view>
+	</view>
+	
+	<!-- 红包弹出框 -->
+<uv-popup ref="redpacketRef" mode="center" round="25" zIndex="2023" @maskClick="handleCloseRedpacket">
+		<!-- 领取红包 -->
+	<view v-if="isVisibleRedpacketRecieve" class="ulive__popup-redpacket__wrap">
+		<image class="redpacket-cover" src="/static/redpacket.png" />
+		<view class="redpacket-infos flexbox flex-col">
+		<image class="logo" src="/static/avatar/uimg3.jpeg" mode="widthFix" />
+			<text class="name">乐购的红包</text>
+	<text class="desc">福利回馈，感恩有您</text>
+			</view>
+	<view class="redpacket-btn" @click="handleCloseRedpacket"><text class="redpacket-btntxt">拆</text></view>
+	<view class="redpacket-more flexbox flex-row"><text class="c-fff fs-24">查看领取详情</text><uv-icon name="arrow-right" color="#fff" size="12" /></view>
+		</view>
+		<!-- 红包雨 -->
+	<view v-if="isVisibleRedpacketWait" class="ulive__popup-redpacket__wrap">
+	<image class="redpacket-cover" src="/static/redpacket-over.png" />
+		<view class="redpacket-infos flexbox flex-col">
+		<image class="logo" src="/static/avatar/uimg7.jpeg" mode="widthFix" />
+				<text class="name">乐购董老师将于</text>
+			<text class="name">12月30日12时00分发送红包雨</text>
+			</view>
+		<view class="redpacket-endtime flexbox flex-col">
+		<text class="c-f7e1ad fs-28">倒计时24时55分12秒</text>
+				<text class="c-f7e1ad fs-24 mt-10">倒计时结束可抢</text>
+			</view>
+		</view>
+	</uv-popup>
+	
+<uv-popup ref="menusRef" mode="bottom" round="10" zIndex="2023" :customStyle="{'background': '#f7fbff'}">
+	<view class="ulive__popup-menus__wrap">
+		<view class="withdraw flexbox flex-row flex-alignc">
+			<view class="flex1 flexbox flex-col"><text class="c-999 fs-24">可提现金额</text><text class="c-eb4868 fs-40">￥638.00</text></view>
+				<button type="primary" size="mini" class="btn">立即提现</button>
+			<button type="primary" plain size="mini" class="btn">提现记录</button>
+			</view>
+	<view class="ulive__popup-menus__wrap-scrollbox flexbox flex-col">
+			<view class="pad25"><text class="fs-28">菜单功能</text></view>
+				<view class="ulive__popup-menus__wrap-body flexbox flex-row">
+				<view v-for="(item,index) in menuList" :key="index" class="ulive__popup-menus__item flexbox flex-col">
+			<image class="icoimg" :src="item.img" mode="aspectFill" />
+				<text class="label">{{item.label}}</text>
+						</view>
+					</view>
+				</view>
+		</view>
+	</uv-popup>
+	
+<uv-popup ref="goodsRef" mode="bottom" round="10" zIndex="2023">
+	<view class="ulive__popup-goods__wrap">
+		<view class="ulive__popup-goods__wrap-head flexbox flex-row">
+		<image class="logo" :src="goodsData.logo" mode="aspectFill" />
+	<view class="flex1 flexbox flex-col ml-10">
+			<view class="flexbox flex-row">{{goodsData.name}}直播间<uv-icon name="arrow-right" size="12" /></view>
+				<view class="flexbox flex-row"><text class="c-eb4868 fs-24">带货口碑</text><text class="c-2979ff fs-24 ml-15">4.78 高</text></view>
+		</view>
+	<navigator url="/pages/cart/index" hover-class="none" open-type="switchTab">
+		<view class="btn flexbox flex-col"><uv-icon name="shopping-cart" size="18" /><text class="fs-28">购物车</text></view>
+				</navigator>
+		<navigator url="/pages/order/list" hover-class="none">
+			<view class="btn flexbox flex-col"><uv-icon name="order" size="18" /><text class="fs-28">订单</text></view>
+				</navigator>
+			</view>
+	<view class="ulive__popup-goods__wrap-cate flexbox flex-row">
+			<view class="cateitem on"><text class="catetxt">全部</text></view><view class="cateitem"><text class="catetxt">零食特产</text></view><view class="cateitem"><text class="catetxt">酒类</text></view><view class="cateitem"><text class="catetxt">厨房电器</text></view>
+			</view>
+		<scroll-view scroll-y="true" style="height: 900rpx;">
+			<view class="ulive__popup-goods__wrap-body">
+			<view class="ulive__popup-goods__item flexbox flex-row">
+				<view class="gpic" @click="toGoodsDetail">
+					<image class="img" :src="goodsData.poster" mode="aspectFill" />
+						<view class="num"><text class="c-fff fs-24">1</text></view>
+				<view class="waves" @click.stop="isVisibleGoodsTalk=true"><text class="c-fff fs-24">讲解中</text></view>
+						</view>
+				<view class="ginfo flex1" @click="toGoodsDetail">
+					<view class="title flexbox flex-row"><text class="fs-32 clamp1">{{goodsData.desc}}</text></view>
+					<view class="subtit flexbox flex-row"><text class="c-eb4868 fs-24">{{goodsData?.topic?.join(' ')}}</text></view>
+			<view class="tags flexbox flex-row">
+					<view class="tagsitem"><text class="tagstext">顺丰包邮</text></view><view class="tagsitem"><text class="tagstext">返2元券</text></view>
+						</view>
+				<view class="foot flexbox flex-row">
+						<view class="price flex1 flexbox flex-row">
+						<view class="real"><text class="c-eb4868 sfs-32">￥22.90</text></view>
+						<view class="del"><text class="deltxt">￥29.00</text></view>
+								</view>
+						<view class="btn">
+					<uv-button color="#ff007f" text="去抢购" size="small" shape="circle" :customStyle="{'height': '60rpx'}"></uv-button>
+							</view>
+					</view>
+				</view>
+				</view>
+				</view>
+		</scroll-view>
+		</view>
+	</uv-popup>
+	
+<uv-popup ref="giftsRef" mode="bottom" round="10" zIndex="2023" :customStyle="{'background': '#232831'}">
+	<view class="ulive__popup-gifts__wrap flexbox flex-col">
+			<view class="ulive__popup-gifts__wrap-head flexbox flex-col">
+			<view class="infowrap flexbox flex-row">
+				<view class="level flex1 flexbox flex-col">
+		<uv-line-progress :percentage="75" height="5" :showText="false" inactiveColor="#16191f" activeColor="#eb48ca" />
+					<text class="fs-20" style="color: rgba(255,255,255,.7)">距离3级还差12金币</text>
+					</view>
+			<view class="btn flexbox flex-row"><text class="c-ffdd1a fs-26">充值</text><uv-icon name="arrow-right" color="#fff" size="12" /></view>
+				<view class="btn"><text class="c-fff fs-26">个人中心</text></view>
+				</view>
+		<view class="tabwrap flexbox flex-row">
+		<uv-tabs :current="giftsTabCurrent" :list="giftsTabList" bg-color="transparent" lineHeight="0" :inactiveStyle="{color: 'rgba(255,255,255,.7)', 'font-size': '28rpx'}" :activeStyle="{color: '#ffdd1a', 'font-size': '28rpx'}" />
+				</view>
+			</view>
+		<scroll-view scroll-y style="height: 600rpx;">
+			<view class="ulive__popup-gifts__wrap-body flexbox flex-row">
+		<view v-for="(giftitem,giftindex) in giftList" :key="giftindex" class="ulive__popup-gifts__item flexbox flex-col" :class="giftCur == giftindex ? 'on' : ''" @tap="handleCheckGift(giftitem, giftindex)">
+				<image class="giftimg" :src="giftitem.pic" mode="aspectFill" />
+						<text class="giftname">{{giftitem.title}}</text>
+			<view v-if="giftCur != giftindex" class="giftcoin flexbox flex-row">
+			<uv-icon name="integral" color="#fff" size="14" /><text class="giftcoin-text">{{giftitem.coins}}</text>
+						</view>
+		<view v-else class="giftbtn" @click="handleSendGift(giftitem)"><text class="giftbtn-text">赠送</text></view>
+				</view>
+		</view>
+			</scroll-view>
+		</view>
+	</uv-popup>
+<uv-popup ref="giftModalRef" mode="center" round="3" zIndex="2023" :customStyle="{'width': '500rpx'}">
+	<view class="ulive__modal-gifts__content"><text class="fs-30">确定要支付{{giftCoins}}金币吗?</text></view>
+	<view class="ulive__modal-gifts__btns flexbox flex-row">
+		<text class="fs-28 c-999 mr-20" @click="handleSendGiftClose">取消</text><text class="fs-28 c-eb4868 ml-20">去支付</text>
+		</view>
+	</uv-popup>
+</template>
+
+<style lang="scss" scoped>
+	/* 视频模块样式 */
+.ua__swipervideo {
+	height: 100%;
+		/* #ifdef MP-WEIXIN */
+		height: 100vh;
+		/* #endif */
+	}
+.ua__swipervideo-wrap {height: 100%;}
+.ua__swipervideo-player {
+		/* #ifndef APP-NVUE */
+	height: 100%!important; width: 100%!important;
+		/* #endif */
+		position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+	}
+.ulive__swiperscreen {height: 100%;}
+	// 浮层样式
+.ulive__headlayer {
+		/* #ifndef APP-NVUE */
+	width: 100%; z-index: 1000;
+		/* #endif */
+		max-width: 750px; position: absolute!important; left: 0; right: 0; top: 0;
+	}
+/* 透明层 */
+.ulive__mask {
+	background-color: rgba(0,0,0,.3); border-radius: 50rpx; display: inline-flex; align-items: center; flex-direction: row;
+		/* #ifdef APP-NVUE */
+	max-width: fit-content;
+		/* #endif */
+	}
+	.ulive__roundwrap {padding: 5rpx 15rpx;}
+.ulive__roundtext {color: #fff; font-size: 24rpx;}
+.ulive__hd-liveinfo {
+	padding: 15rpx 20rpx;
+	.ulive__hd-avatar {
+		padding: 5rpx;
+			.logo {border-radius: 50%; height: 60rpx; width: 60rpx;}
+		.name {color: #fff; font-size: 24rpx;}
+			.zan {color: rgba(255,255,255,.7); font-size: 20rpx;}
+		.btn {background-color: #ff007f; border-radius: 50rpx; margin-left: 10rpx; padding: 0 20rpx; height: 60rpx;}
+		.btntext {color: #fff; font-size: 28rpx;}
+			.btn.active {background-color: #fff;}
+		.btntext.active {color: #ff007f;}
+		}
+	.ulive__hd-onlineuser {
+		align-items: flex-end; justify-content: center;
+			/* #ifdef MP-WEIXIN */
+	padding-right: 200rpx;
+			/* #endif */
+		}
+	}
+	.ulive__hd-livewrap {
+		.ulive__hd-livewrap__left {margin-left: 20rpx;}
+	.ulive__hd-livewrap__right {align-items: flex-end;}
+	.ulive__hd-livewrap__redpacket {
+		margin-top: 15rpx;
+			.ulive__redpacket-item {align-items: flex-end; justify-content: center; border-radius: 20rpx; margin-right: 10rpx; height: 76rpx; width: 76rpx; position: relative;}
+			.ulive__redpacket-item.center {align-items: center;}
+		.ulive__redpacket-image {width: 76rpx;}
+	.ulive__redpacket-time {background-color: rgba(0, 0, 0, .5); border-radius: 20rpx; color: #fff; font-size: 24rpx; position: absolute; bottom: 0;}
+		}
+	}
+	/* 底部区域 */
+.ulive__footlayer {
+		/* #ifndef APP-NVUE */
+	width: 100%; z-index: 1000;
+		/* #endif */
+		max-width: 750px; position: absolute!important; left: 0; right: 0; bottom: 0;
+	}
+.ulive__ft-livewrap-placeholder {
+		padding: 10rpx 20rpx; display: inline-flex; align-items: center; flex-direction: row;
+		/* #ifdef APP-NVUE */
+	max-width: fit-content;
+		/* #endif */
+	}
+.ulive__ft-livewrap-hotbuy {
+background: linear-gradient(to right, rgba(205, 145, 10, .7) 20%, transparent); border: 1rpx solid rgba(255,255,255,.5); border-radius: 20rpx; display: inline-flex; align-items: center;
+		/* #ifdef APP-NVUE */
+	max-width: fit-content;
+		/* #endif */
+	.gimg {border-radius: 20rpx; margin-right: 10rpx; height: 100rpx; width: 100rpx;}
+		.ginfo {color: #fff; max-width: 375rpx;}
+		.gdesc {color: #fff; font-size: 24rpx;}
+	.btn {
+	background: #fff; border-radius: 30rpx; margin: 0 10rpx; padding: 10rpx 20rpx;
+		.btntext {color: #cd910a; font-size: 28rpx;}
+		}
+	}
+.ulive__ft-livewrap-animateview {min-height: 180rpx;}
+.ulive__ft-livewrap-animatejoin {min-height: 80rpx;}
+	.ulive__ft-livewrap-animategift {min-height: 100rpx;}
+.ulive__ft-livewrap-joinroom {
+	background: linear-gradient(to right, #ab29fd, transparent); border-radius: 30rpx; display: inline-flex; max-width: fit-content; padding: 5rpx 15rpx; min-width: 500rpx;
+animation: ulive__animSlideInRight 2s;
+		.ulive__ft-livewrap-joinroom__text {color: #fff; font-size: 28rpx;}
+	}
+.ulive__ft-livewrap-activegift {
+	background: linear-gradient(to right, #ff63b1, transparent); border-radius: 50rpx; display: inline-flex; max-width: fit-content; padding: 5rpx 15rpx; position: relative;
+animation: ulive__animSlideInLeft .3s;
+	.avatar {border-radius: 50%; height: 60rpx; width: 60rpx;}
+		.info {padding: 0 20rpx; padding-right: 90rpx;}
+	.name {color: #fff; font-size: 28rpx;}
+	.desc {color: #fff; font-size: 24rpx; display: block;}
+		.gift {height: 50rpx; width: 50rpx; position: absolute; top: 10rpx; right: 20rpx; transform: scale(1.5);}
+	}
+.ulive__ft-livewrap-mixinview {
+	padding: 10rpx 20rpx; align-items: flex-end;
+	.ulive__ft-livewrap-chats {
+	height: 400rpx; max-width: 600rpx; pointer-events: auto; position: relative;
+			.ulive__ft-livewrap-chats__scrollview {height: 400rpx; width: fit-content;}
+		.notice {margin-bottom: 10rpx;}
+	.msg {display: flex; align-items: flex-start; margin-bottom: 10rpx;}
+		.gift {display: flex; align-items: flex-start; margin-bottom: 10rpx;}
+			.item {background-color: rgba(0, 0, 0, .3); border-radius: 30rpx; padding: 5rpx 15rpx;}
+		.msg .item, .gift .item {
+			display: inline-block;
+				/* #ifdef APP-NVUE */
+				display: inline-flex; flex-direction: row;
+				/* #endif */
+			}
+	.noticetext {color: #77e8e1; font-size: 28rpx;}
+			.user {color: #77e8e1; font-size: 24rpx; margin-right: 10rpx;}
+		.text {color: #fff; font-size: 28rpx;}
+			.giftuser {color: #ffdd1a; margin-right: 15rpx;}
+		.gifttext {color: #ff0ad3;}
+			.giftimg {display: inline-block; margin: 0 10rpx; width: 50rpx; transform: scale(1.2);}
+	.giftnum {color: #ff0ad3; font-size: 32rpx; font-style: italic;}
+			.tag {background: linear-gradient(45deg, #f4bc61, #da8300); border-radius: 30rpx; color: #fff; display: inline-block; vertical-align: top; font-size: 24rpx; margin-right: 10rpx; padding: 3rpx 10rpx;}
+	.tag-buy {background: #ff007f; margin-left: 10rpx; margin-right: 0;}
+			.ulive__ft-livewrap-chats__unread {align-items: center; background-color: #fff; border-radius: 30rpx; padding: 7rpx 0; width: 160rpx; position: absolute; left: 0; bottom: 0;}
+		}
+	.ulive__ft-livewrap-activegoods {
+		margin-left: 20rpx; height: 400rpx; width: 200rpx;
+			.ulive__ft-livewrap-activegoods__hotsale {
+		background: linear-gradient(to right, rgba(255, 153, 0, 1), rgba(255, 153, 0, .1)); border-radius: 30rpx; align-items: center; margin-bottom: 10rpx; padding-left: 20rpx;
+	.fimg {height: 30rpx; width: 30rpx; margin-right: 10rpx;}
+			}
+			.ulive__ft-livewrap-activegoods__swiper {height: 375rpx;}
+	.ulive__ft-livewrap-activegoods__card {
+		background-color: #fff; border-radius: 10rpx; overflow: hidden; width: 200rpx; position: relative; border: 3px solid #fff;
+			.gwrap {height: 200rpx; position: relative;}
+				.gimg {height: 200rpx; width: 200rpx;}
+	.waves {background-color: rgba(0, 0, 0, .3); border-radius: 0 20rpx 20rpx 0; padding: 5rpx 10rpx; position: absolute; top: 0;}
+				.close {position: absolute; top: 10rpx; right: 10rpx;}
+		.ginfo {padding: 5rpx;}
+			.btn {background-color: #ff007f; border-radius: 10rpx; align-items: center; padding: 0 10rpx; height: 50rpx;}
+	.qiang{color: #ffdd1a; font-size: 36rpx; font-style: italic; margin-right: 10rpx;}
+			}
+		}
+	}
+.ulive__ft-livewrap-toolbar {
+	padding: 10rpx 20rpx 15rpx;
+	.editorwrap {background-color: rgba(0, 0, 0, .3); border: 0; border-radius: 50rpx; padding: 0 30rpx; height: 70rpx; position: relative;}
+.editorwrap-text {color: rgba(255, 255, 255, .8); font-size: 28rpx;}
+	.btnwrap {
+	justify-content: flex-end;
+	.btn {background-color: rgba(0, 0, 0, .3); border-radius: 50%; align-items: center; justify-content: center; margin-left: 20rpx; height: 70rpx; width: 70rpx; position: relative;}
+		}
+	}
+.ulive__video-chat__wrap {max-width: 750px; position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 2023;}
+	.ulive__video-chat__mask {
+background-color: rgba(0,0,0,.4); position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: inherit; animation: animMask .5s;
+	}
+	.ulive__video-chat__body {
+background-color: transparent; position: fixed; left: 0; right: 0; bottom: 0; z-index: inherit;
+	}
+.ulive__video-chat__editor {background-color: #fff; padding: 20rpx;}
+	.ulive__video-chat__emojs {}
+	
+.ulive__popup-redpacket__wrap {
+	height: 756rpx; width: 560rpx; position: relative;
+		.redpacket-cover {height: 756rpx; width: 560rpx; position: absolute; left: 0; top: 0;}
+	.redpacket-infos {
+	align-items: center; justify-content: center; position: absolute; top: 100rpx; left: 0; right: 0;
+			.logo {border-radius: 10rpx; height: 90rpx; width: 90rpx;}
+		.name {color: #f7e1ad; font-size: 28rpx; margin-top: 20rpx;}
+			.desc {color: #f7e1ad; font-size: 36rpx; margin-top: 20rpx;}
+		}
+	.redpacket-btn {background: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; height: 120rpx; width: 120rpx; position: absolute; top: 395rpx; left: 220rpx;}
+	.redpacket-btntxt {color: #eb4868; font-size: 70rpx;}
+		.redpacket-more {align-items: center; justify-content: center; position: absolute; bottom: 100rpx; left: 0; right: 0;}
+	.redpacket-endtime {align-items: center; justify-content: center; position: absolute; bottom: 150rpx; left: 0; right: 0;}
+	}
+	
+.ulive__popup-menus__wrap {
+	.withdraw {
+	background: #fff; box-shadow: 0 1px 3px #eee; border-radius: 30rpx; margin: 25rpx; padding: 25rpx;
+	.btn {border-radius: 50rpx; font-size: 24rpx; margin-left: 20rpx;}
+		}
+	.ulive__popup-menus__wrap-scrollbox {
+	background: #fff; box-shadow: 0 1px 3px #eee; border-radius: 30rpx; margin: 0 25rpx 25rpx; padding: 15rpx 0 25rpx;
+		.ulive__popup-menus__wrap-body {
+		flex-wrap: wrap;
+		.ulive__popup-menus__item {
+			align-items: center; justify-content: center; padding: 20rpx 0; width: 175rpx;
+	.icoimg {height: 50rpx; width: 50rpx; object-fit: cover;}
+			.label {font-size: 24rpx; margin-top: 20rpx;}
+		}
+			}
+		}
+	}
+	
+// 商品弹框
+.ulive__popup-goods__wrap {
+	.ulive__popup-goods__wrap-head {
+	align-items: center; padding: 20rpx;
+		.logo {border-radius: 50%; height: 80rpx; width: 80rpx;}
+			.btn {align-items: center; margin-left: 20rpx;}
+		}
+	.ulive__popup-goods__wrap-cate {
+		border-bottom: 1rpx solid #eee; padding: 20rpx 0;
+	.cateitem {border: 1rpx solid #ddd; border-radius: 50rpx; margin-left: 20rpx; padding: 5rpx 20rpx;}
+		.cateitem.on {border-color: #eb4868;}
+			.catetxt {color: #999; font-size: 24rpx;}
+	.cateitem.on .catetxt {color: #eb4868;}
+		}
+.ulive__popup-goods__wrap-body {
+		padding: 20rpx;
+		.ulive__popup-goods__item {
+	margin-bottom: 20rpx; padding-bottom: 20rpx;
+		.gpic {
+				border-radius: 20rpx; overflow: hidden; height: 200rpx; width: 200rpx; position: relative;
+					.img {border-radius: 20rpx; height: 200rpx; width: 200rpx;}
+		.num {background-color: rgba(0, 0, 0, .3); border-radius: 20rpx 0 20rpx 0; padding: 5rpx 20rpx; position: absolute; top: 0;}
+		.waves {background-color: rgba(235, 72, 104, .9); border-radius: 0 0 20rpx 20rpx; align-items: center; justify-content: center; padding: 5rpx 0; text-align: center; position: absolute; bottom: 0; left: 0; right: 0;}
+	}
+	.ginfo {
+		margin-left: 20rpx;
+		.title {font-size: 32rpx;}
+		.subtit {align-items: center; margin-top: 5rpx;}
+		.tags {
+			margin-top: 10rpx;
+			.tagsitem {border: 1rpx solid #fde7eb; border-radius: 5rpx; margin-right: 5rpx; padding: 2rpx 8rpx;}
+			.tagstext {color: #eb4868; font-size: 20rpx;}
+		}
+		.foot {
+			margin-top: 20rpx;
+			.price {align-items: center;}
+			.del {margin-left: 5rpx;}
+			.deltxt {color: #aaa; font-size: 24rpx; text-decoration: line-through;}
+			.btn {}
+		}
+		}
+			}
+		}
+	}
+	
+// 礼物弹框
+.ulive__popup-gifts__wrap {
+		.ulive__popup-gifts__wrap-head {
+			.infowrap {
+	padding: 30rpx 30rpx 0;
+	.level {}
+	.btn {background-color: #333a48; border-radius: 5rpx; margin-left: 20rpx; padding: 5rpx 15rpx;}
+}
+.tabwrap {}
+}
+.ulive__popup-gifts__wrap-body {
+flex-wrap: wrap; padding: 0 25rpx 25rpx;
+.ulive__popup-gifts__item {
+	border: 1rpx solid transparent; border-radius: 15rpx; align-items: center; justify-content: center; height: 250rpx; width: 175rpx;
+	.giftimg {height: 90rpx; width: 90rpx; object-fit: cover;}
+	.giftname {color: #fff; font-size: 28rpx; margin-top: 10rpx;}
+	.giftcoin {margin-top: 5rpx;}
+	.giftcoin-text {color: #fff; font-size: 24rpx;}
+	.giftbtn {background-color: #eb4868; border-radius: 5rpx; margin-top: 5rpx; padding: 5rpx 15rpx;}
+	.giftbtn-text {color: #fff; font-size: 24rpx;}
+}
+.ulive__popup-gifts__item.on {background-color: #333a48; border-color: #3f4859;}
+.ulive__popup-gifts__item.on .giftimg {transform: scale(1.3); transition: all .3s;}
+}
+	}
+	.ulive__modal-gifts__content {padding: 50rpx;}
+	.ulive__modal-gifts__btns {justify-content: flex-end; padding: 50rpx;}
+	
+	
+	/* 动画特效 */
+	@keyframes animMask {0% {opacity: 0;}}
+	
+	// 进入直播间(右向左)
+@keyframes ulive__animSlideInRight {
+	0% {transform: translateX(50%);}
+		30% {transform: translateX(0);}
+	50% {transform: translateX(-5px);}
+	60% {transform: translateX(-6px);}
+		70% {transform: translateX(-7px);}
+	80% {transform: translateX(-8px);}
+	90% {transform: translateX(-9px);}
+		100% {transform: translateX(-100%);}
+	}
+	// 送礼物-鲜花掌声(左向右)
+@keyframes ulive__animSlideInLeft {
+	0% {transform: translateX(-100%);}
+	100% {transform: translateX(0);}
+	}
+	@keyframes ulive__animFadeOut {
+		0% {opacity: 1;}
+100% {opacity: 0;}
+	}
+</style>

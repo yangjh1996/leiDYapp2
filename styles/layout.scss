@@ -1,0 +1,31 @@
+/**
+	布局样式 layout.css
+	Created by yxy 2023/12
+ */
+
+/* 消息提示(圆点) */
+.ua__badge {
+	/* #ifdef APP-NVUE */
+padding: 0 12rpx;
+	/* #endif */
+	/* #ifndef APP-NVUE */
+display: inline-block; padding: 0 12rpx; position: relative; z-index: 101;
+	box-sizing: border-box;
+	/* #endif */
+background-color: #ff5438; border-radius: 40rpx; color: #fff; border: 1rpx solid rgba(255, 255, 255, .5);
+	font-size: 24rpx; font-family: arial; text-align: center; line-height: 36rpx;
+min-width: 36rpx; vertical-align: middle;
+}
+.ua__badge-dot{background-color: #ff5438; border: 1rpx solid rgba(255, 255, 255, .5); border-radius: 50%; font-size: 0; padding: 0; height: 18rpx; line-height: 0; min-width: 0; width: 18rpx;}
+
+/* 主容器布局layout */
+.ulive__container {
+overflow: hidden; height: 100%; position: relative;
+}
+.ulive__container.scrolling {overflow: auto; height: auto; min-height: 100%;} /*全屏滚动*/
+.ulive__scrollview {
+	/* #ifndef APP-NVUE */
+width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; 
+	/* #endif */
+	position: relative;
+}
